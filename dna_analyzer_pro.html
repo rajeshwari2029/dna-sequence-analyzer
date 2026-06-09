@@ -1,0 +1,1198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DNA Sequence Analyzer Pro</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #060a10;
+  --surface: #0c1220;
+  --surface2: #111827;
+  --border: #1e2d45;
+  --border2: #2a3f5f;
+  --glow-a: #22d3ee;
+  --glow-t: #f472b6;
+  --glow-g: #4ade80;
+  --glow-c: #fb923c;
+  --accent: #6366f1;
+  --accent2: #8b5cf6;
+  --text: #e2e8f0;
+  --muted: #64748b;
+  --mono: 'JetBrains Mono', monospace;
+  --sans: 'Space Grotesk', sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ANIMATED BG */
+.bg-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.helix-line {
+  position: absolute;
+  width: 100%;
+  height: 2px;
+  opacity: 0.04;
+  background: linear-gradient(90deg, transparent, var(--glow-a), transparent);
+  animation: drift linear infinite;
+}
+@keyframes drift {
+  from { transform: translateY(-10px); opacity: 0; }
+  10% { opacity: 0.06; }
+  90% { opacity: 0.06; }
+  to { transform: translateY(100vh); opacity: 0; }
+}
+.particle {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  opacity: 0;
+  animation: particle-float linear infinite;
+}
+@keyframes particle-float {
+  0% { transform: translateY(100vh) scale(0); opacity: 0; }
+  10% { opacity: 0.6; }
+  90% { opacity: 0.3; }
+  100% { transform: translateY(-20px) scale(1.5); opacity: 0; }
+}
+
+/* LAYOUT */
+.app {
+  position: relative;
+  z-index: 1;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 24px 80px;
+}
+
+/* HERO HEADER */
+.hero {
+  padding: 48px 0 36px;
+  text-align: center;
+}
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(99,102,241,0.3);
+  background: rgba(99,102,241,0.07);
+  padding: 5px 14px 5px 10px;
+  border-radius: 100px;
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #818cf8;
+  margin-bottom: 20px;
+}
+.badge-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #6366f1;
+  box-shadow: 0 0 8px #6366f1;
+  animation: pulse 2s ease infinite;
+}
+@keyframes pulse { 0%,100% { box-shadow: 0 0 8px #6366f1; } 50% { box-shadow: 0 0 20px #6366f1, 0 0 40px #6366f185; } }
+
+.hero h1 {
+  font-size: clamp(32px, 5vw, 58px);
+  font-weight: 700;
+  letter-spacing: -1.5px;
+  line-height: 1.05;
+  margin-bottom: 12px;
+  background: linear-gradient(135deg, #e2e8f0 0%, #94a3b8 50%, #6366f1 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.hero-sub {
+  font-size: 14px;
+  color: var(--muted);
+  letter-spacing: 0.3px;
+  max-width: 480px;
+  margin: 0 auto 28px;
+  line-height: 1.7;
+}
+
+/* DNA HELIX VISUALIZER */
+.helix-display {
+  width: 100%;
+  height: 60px;
+  margin-bottom: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  overflow: hidden;
+}
+.helix-base {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  animation: helix-wave ease-in-out infinite;
+}
+@keyframes helix-wave {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-12px); }
+}
+.base-top, .base-bot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.base-stem {
+  width: 2px;
+  background: rgba(255,255,255,0.06);
+  flex: 1;
+  min-height: 18px;
+}
+
+/* INPUT SECTION */
+.input-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 28px;
+  margin-bottom: 20px;
+  position: relative;
+  overflow: hidden;
+}
+.input-section::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--accent), var(--accent2), var(--glow-a));
+}
+.input-label {
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.input-label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.sequence-textarea {
+  width: 100%;
+  min-height: 120px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 13px;
+  padding: 16px;
+  resize: vertical;
+  line-height: 1.8;
+  letter-spacing: 2px;
+  outline: none;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+.sequence-textarea:focus {
+  border-color: rgba(99,102,241,0.5);
+  box-shadow: 0 0 0 4px rgba(99,102,241,0.08), inset 0 0 20px rgba(99,102,241,0.03);
+}
+
+/* LIVE BASE COLORING */
+.seq-preview {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 2px;
+  line-height: 1.9;
+  padding: 10px 0;
+  min-height: 24px;
+  word-break: break-all;
+  margin-top: 8px;
+}
+.b-A { color: var(--glow-a); }
+.b-T { color: var(--glow-t); }
+.b-G { color: var(--glow-g); }
+.b-C { color: var(--glow-c); }
+
+/* SAMPLES */
+.sample-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  align-items: center;
+}
+.sample-lbl { font-size: 11px; color: var(--muted); letter-spacing: 1px; }
+.sample-chip {
+  font-size: 11px;
+  padding: 5px 12px;
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-family: var(--sans);
+  transition: all 0.2s;
+}
+.sample-chip:hover {
+  border-color: var(--accent);
+  color: #818cf8;
+  background: rgba(99,102,241,0.07);
+}
+
+/* ANALYZE BUTTON */
+.analyze-btn {
+  width: 100%;
+  padding: 16px;
+  margin-top: 16px;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #4f46e5, #7c3aed, #2563eb);
+  background-size: 200% 200%;
+  color: white;
+  font-family: var(--sans);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s;
+  letter-spacing: 0.3px;
+}
+.analyze-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.analyze-btn:hover::before { opacity: 1; }
+.analyze-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 30px rgba(99,102,241,0.4); }
+.analyze-btn:active { transform: translateY(0); }
+.analyze-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+.btn-inner { display: flex; align-items: center; justify-content: center; gap: 10px; }
+.btn-spinner {
+  width: 18px; height: 18px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  display: none;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ERROR */
+.error-bar {
+  display: none;
+  background: rgba(239,68,68,0.1);
+  border: 1px solid rgba(239,68,68,0.3);
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-size: 12px;
+  color: #f87171;
+  margin-top: 12px;
+}
+
+/* RESULTS */
+#results {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+}
+#results.visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+/* STAT CARDS */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 18px 16px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.3s, transform 0.2s;
+}
+.stat-card:hover { border-color: var(--border2); transform: translateY(-2px); }
+.stat-card::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 2px;
+  opacity: 0.6;
+}
+.stat-card.c-cyan::after { background: var(--glow-a); }
+.stat-card.c-pink::after { background: var(--glow-t); }
+.stat-card.c-green::after { background: var(--glow-g); }
+.stat-card.c-orange::after { background: var(--glow-c); }
+.stat-icon {
+  font-size: 18px;
+  margin-bottom: 10px;
+  display: block;
+}
+.stat-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+.stat-value {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -1px;
+  line-height: 1;
+  font-family: var(--mono);
+}
+.stat-unit { font-size: 12px; font-weight: 400; color: var(--muted); margin-left: 2px; }
+.stat-card.c-cyan .stat-value { color: var(--glow-a); }
+.stat-card.c-pink .stat-value { color: var(--glow-t); }
+.stat-card.c-green .stat-value { color: var(--glow-g); }
+.stat-card.c-orange .stat-value { color: var(--glow-c); }
+
+/* GRID PANELS */
+.panels-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.panel-full { grid-column: 1 / -1; }
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px;
+  position: relative;
+}
+.panel-title {
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.panel-title-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+/* FREQUENCY BARS */
+.freq-bars { display: flex; flex-direction: column; gap: 12px; }
+.freq-row { display: flex; align-items: center; gap: 12px; }
+.freq-base {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.freq-base.A { background: rgba(34,211,238,0.15); color: var(--glow-a); }
+.freq-base.T { background: rgba(244,114,182,0.15); color: var(--glow-t); }
+.freq-base.G { background: rgba(74,222,128,0.15); color: var(--glow-g); }
+.freq-base.C { background: rgba(251,146,60,0.15); color: var(--glow-c); }
+.freq-track {
+  flex: 1;
+  height: 8px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 100px;
+  overflow: hidden;
+}
+.freq-fill {
+  height: 100%;
+  border-radius: 100px;
+  width: 0%;
+  transition: width 1s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+}
+.freq-fill::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: inherit;
+  filter: blur(3px);
+}
+.freq-fill.A { background: var(--glow-a); box-shadow: 0 0 10px var(--glow-a); }
+.freq-fill.T { background: var(--glow-t); box-shadow: 0 0 10px var(--glow-t); }
+.freq-fill.G { background: var(--glow-g); box-shadow: 0 0 10px var(--glow-g); }
+.freq-fill.C { background: var(--glow-c); box-shadow: 0 0 10px var(--glow-c); }
+.freq-count { font-family: var(--mono); font-size: 11px; color: var(--muted); width: 50px; text-align: right; }
+
+/* DONUT CHART */
+.donut-wrap { display: flex; align-items: center; gap: 20px; }
+.donut-legend { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+.legend-item { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.legend-name { color: var(--muted); flex: 1; }
+.legend-val { font-family: var(--mono); font-weight: 600; color: var(--text); }
+
+/* TRANSLATION SECTION */
+.translation-chain {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.trans-row {
+  display: grid;
+  grid-template-columns: 70px 1fr;
+  gap: 12px;
+  align-items: start;
+}
+.trans-tag {
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding-top: 8px;
+  font-family: var(--mono);
+}
+.trans-seq {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 1.5px;
+  color: var(--text);
+  line-height: 1.8;
+  word-break: break-all;
+}
+.trans-arrow {
+  display: flex;
+  align-items: center;
+  padding-left: 8px;
+  color: var(--accent);
+  font-size: 16px;
+}
+
+/* ORF VIEWER */
+.orf-genome-bar {
+  width: 100%;
+  height: 28px;
+  background: rgba(255,255,255,0.04);
+  border-radius: 6px;
+  position: relative;
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+.orf-segment {
+  position: absolute;
+  height: 100%;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-family: var(--mono);
+  color: rgba(0,0,0,0.7);
+  font-weight: 700;
+  overflow: hidden;
+  transition: all 0.3s;
+  cursor: pointer;
+}
+.orf-segment:hover { filter: brightness(1.3); }
+.orf-list-items { display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto; }
+.orf-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 12px;
+  font-family: var(--mono);
+  transition: border-color 0.2s;
+}
+.orf-item:hover { border-color: var(--border2); }
+.orf-frame-badge {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 100px;
+  font-weight: 600;
+}
+.orf-f1 { background: rgba(99,102,241,0.2); color: #818cf8; }
+.orf-f2 { background: rgba(139,92,246,0.2); color: #a78bfa; }
+.orf-f3 { background: rgba(59,130,246,0.2); color: #60a5fa; }
+.orf-coords { color: var(--muted); flex: 1; }
+.orf-len { color: var(--text); }
+.no-orf { color: var(--muted); font-size: 13px; text-align: center; padding: 24px; }
+
+/* CODON USAGE */
+.codon-grid { display: flex; flex-wrap: wrap; gap: 5px; }
+.codon-cell {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 4px 7px;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  transition: all 0.2s;
+  cursor: default;
+  position: relative;
+}
+.codon-cell:hover { border-color: var(--border2); z-index: 10; }
+.codon-cell .codon-tooltip {
+  position: absolute;
+  bottom: calc(100% + 5px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 10px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 100;
+}
+.codon-cell:hover .codon-tooltip { opacity: 1; }
+
+/* AI ANALYSIS */
+.ai-panel {
+  background: var(--surface);
+  border: 1px solid rgba(99,102,241,0.2);
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 16px;
+  position: relative;
+  overflow: hidden;
+}
+.ai-panel::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--accent), var(--accent2), var(--glow-a), var(--accent));
+  background-size: 300% 100%;
+  animation: shimmer 3s linear infinite;
+}
+@keyframes shimmer { 0% { background-position: 0% 0%; } 100% { background-position: 300% 0%; } }
+.ai-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.ai-icon {
+  width: 32px;
+  height: 32px;
+  background: rgba(99,102,241,0.15);
+  border: 1px solid rgba(99,102,241,0.3);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+}
+.ai-title { font-size: 13px; font-weight: 600; color: var(--text); }
+.ai-subtitle { font-size: 11px; color: var(--muted); }
+.ai-body {
+  font-size: 13px;
+  line-height: 1.85;
+  color: #94a3b8;
+  white-space: pre-wrap;
+}
+.ai-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.ai-dots span {
+  display: inline-block;
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: dotpulse 1.2s ease infinite;
+  margin: 0 2px;
+}
+.ai-dots span:nth-child(2) { animation-delay: 0.2s; }
+.ai-dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes dotpulse { 0%,80%,100% { transform: scale(0.5); opacity: 0.3; } 40% { transform: scale(1); opacity: 1; } }
+
+/* STATUS BAR */
+.status-bar {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: rgba(99,102,241,0.07);
+  border: 1px solid rgba(99,102,241,0.15);
+  border-radius: 10px;
+  margin-top: 12px;
+  font-size: 12px;
+  color: #818cf8;
+}
+.status-bar .mini-spinner {
+  width: 14px; height: 14px;
+  border: 1.5px solid rgba(99,102,241,0.3);
+  border-top-color: #818cf8;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+/* FOOTER TAG */
+.tech-stack {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 40px;
+  opacity: 0.4;
+}
+.tech-tag {
+  font-size: 10px;
+  letter-spacing: 1px;
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  color: var(--muted);
+  font-family: var(--mono);
+}
+
+@media (max-width: 680px) {
+  .stats-row { grid-template-columns: repeat(2, 1fr); }
+  .panels-grid { grid-template-columns: 1fr; }
+  .panel-full { grid-column: 1; }
+  .donut-wrap { flex-direction: column; }
+}
+</style>
+</head>
+<body>
+
+<!-- ANIMATED BACKGROUND -->
+<div class="bg-canvas" id="bgCanvas"></div>
+
+<div class="app">
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-badge"><div class="badge-dot"></div> Bioinformatics Research Tool</div>
+    <h1>DNA Sequence<br>Analyzer</h1>
+    <p class="hero-sub">Paste any DNA sequence for instant analysis — GC content, ORF detection, codon usage, translation, and AI-powered biological interpretation.</p>
+
+    <!-- ANIMATED HELIX -->
+    <div class="helix-display" id="helixDisplay"></div>
+  </div>
+
+  <!-- INPUT SECTION -->
+  <div class="input-section">
+    <div class="input-label">Input sequence</div>
+    <textarea class="sequence-textarea" id="seqInput"
+      placeholder="ATGCGATCGATCG...  (paste any DNA sequence here)"></textarea>
+    <div class="seq-preview" id="seqPreview"></div>
+
+    <div class="sample-row">
+      <span class="sample-lbl">Load sample ↗</span>
+      <button class="sample-chip" onclick="loadSample('brca1')">BRCA1 exon fragment</button>
+      <button class="sample-chip" onclick="loadSample('tp53')">TP53 tumor suppressor</button>
+      <button class="sample-chip" onclick="loadSample('il4r')">IL-4Rα (asthma target)</button>
+      <button class="sample-chip" onclick="loadSample('gcrich')">GC-rich region</button>
+    </div>
+
+    <button class="analyze-btn" id="analyzeBtn" onclick="runAnalysis()">
+      <div class="btn-inner">
+        <div class="btn-spinner" id="btnSpinner"></div>
+        <span id="btnText">⚡ Analyze Sequence</span>
+      </div>
+    </button>
+    <div class="error-bar" id="errBar"></div>
+    <div class="status-bar" id="statusBar">
+      <div class="mini-spinner"></div>
+      <span id="statusText">Initializing analysis...</span>
+    </div>
+  </div>
+
+  <!-- RESULTS -->
+  <div id="results">
+
+    <!-- STAT CARDS -->
+    <div class="stats-row">
+      <div class="stat-card c-cyan">
+        <span class="stat-icon">🧬</span>
+        <div class="stat-label">Sequence length</div>
+        <div class="stat-value"><span id="r-len">—</span><span class="stat-unit">bp</span></div>
+      </div>
+      <div class="stat-card c-green">
+        <span class="stat-icon">⚗️</span>
+        <div class="stat-label">GC content</div>
+        <div class="stat-value"><span id="r-gc">—</span><span class="stat-unit">%</span></div>
+      </div>
+      <div class="stat-card c-pink">
+        <span class="stat-icon">🔬</span>
+        <div class="stat-label">Codons (frame 1)</div>
+        <div class="stat-value"><span id="r-codons">—</span></div>
+      </div>
+      <div class="stat-card c-orange">
+        <span class="stat-icon">🧩</span>
+        <div class="stat-label">ORFs found</div>
+        <div class="stat-value"><span id="r-orfs">—</span></div>
+      </div>
+    </div>
+
+    <!-- FREQ + DONUT -->
+    <div class="panels-grid">
+      <div class="panel">
+        <div class="panel-title"><div class="panel-title-dot"></div>Nucleotide frequency</div>
+        <div class="freq-bars" id="freqBars"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title"><div class="panel-title-dot" style="background:var(--glow-g)"></div>GC / AT composition</div>
+        <div class="donut-wrap">
+          <canvas id="donutCanvas" width="130" height="130"></canvas>
+          <div class="donut-legend" id="donutLegend"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TRANSLATION -->
+    <div class="panel" style="margin-bottom:16px">
+      <div class="panel-title"><div class="panel-title-dot" style="background:var(--glow-t)"></div>Central dogma — frame +1 translation</div>
+      <div class="translation-chain" id="transChain"></div>
+    </div>
+
+    <!-- ORF MAP + LIST -->
+    <div class="panel" style="margin-bottom:16px">
+      <div class="panel-title"><div class="panel-title-dot" style="background:var(--accent2)"></div>Open reading frames — all 3 frames</div>
+      <div class="orf-genome-bar" id="orfBar"></div>
+      <div class="orf-list-items" id="orfItems"></div>
+    </div>
+
+    <!-- CODON USAGE -->
+    <div class="panel" style="margin-bottom:16px">
+      <div class="panel-title"><div class="panel-title-dot" style="background:var(--glow-c)"></div>Codon usage</div>
+      <div class="codon-grid" id="codonGrid"></div>
+    </div>
+
+    <!-- AI ANALYSIS -->
+    <div class="ai-panel">
+      <div class="ai-header">
+        <div class="ai-icon">✦</div>
+        <div>
+          <div class="ai-title">AI biological interpretation</div>
+          <div class="ai-subtitle">Powered by Claude — research-grade analysis</div>
+        </div>
+      </div>
+      <div id="aiContent">
+        <div class="ai-loading"><div class="ai-dots"><span></span><span></span><span></span></div> Awaiting sequence...</div>
+      </div>
+    </div>
+
+  </div><!-- end results -->
+
+  <div class="tech-stack">
+    <span class="tech-tag">Biopython logic</span>
+    <span class="tech-tag">Claude API</span>
+    <span class="tech-tag">JavaScript</span>
+    <span class="tech-tag">Canvas API</span>
+    <span class="tech-tag">GC analysis</span>
+    <span class="tech-tag">ORF detection</span>
+  </div>
+
+</div>
+
+<script>
+/* ── SAMPLES ── */
+const SAMPLES = {
+  brca1: "ATGGATCTCGAGAGCATGATGGAGCAGCTGCAGCTGGAGAACCCAGAGATGATGCAGCAGCTGCAGCTGGAGAACCCAGAGATGATGCAGCAGCTGCAGCTGGAGAACCCAGAGATGATGCAGCAGCTGCAGCTGGAGAACCCAGAGATGATGCAGCAGCTG",
+  tp53:  "ATGGAGGAGCCGCAGTCAGATCCTAGCATAGTGAGTCTCCCCAGCCCTCTGAGCCTTGAAGTGATGATGGATCTGGAGATGATGCAGCAGCTGATGAGGAGCCGCAGTCAGATCCTAGCATAGTGAGTCTCCCATGCAGCAGCTGATG",
+  il4r:  "ATGCAGCAGCTGATGAGGCAGCTGCAGCTGGAGAACCCAGAGATGATGCAGCAGCTGCAGCTGGAGAACCCAGAGATGATGCAGCAGCTGCAGCTGGAGAACCCAGAGATGATGCAGCAGCTGCAGCTGGAGAACCCAGAGATGCAG",
+  gcrich:"ATGCGCGCGGCGCCCGGGCGCGCGGCCCGCGCGGCGCGCCCGGCGCGGCGCGCGGCGCGCCCGGCGCGGCGCGCGGCGCGCCCGGCGCGGCGCGCGGCGCGCCCGGCGCGGCG"
+};
+
+/* ── BACKGROUND ANIMATION ── */
+(function initBg() {
+  const canvas = document.getElementById('bgCanvas');
+  const bases = ['A','T','G','C'];
+  const cols = {A:'#22d3ee',T:'#f472b6',G:'#4ade80',C:'#fb923c'};
+  for (let i = 0; i < 8; i++) {
+    const line = document.createElement('div');
+    line.className = 'helix-line';
+    line.style.top = (Math.random() * 100) + '%';
+    line.style.animationDuration = (15 + Math.random() * 25) + 's';
+    line.style.animationDelay = (Math.random() * 20) + 's';
+    canvas.appendChild(line);
+  }
+  for (let i = 0; i < 20; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    const b = bases[Math.floor(Math.random() * 4)];
+    p.style.cssText = `left:${Math.random()*100}%;background:${cols[b]};box-shadow:0 0 6px ${cols[b]};animation-duration:${8+Math.random()*12}s;animation-delay:${Math.random()*10}s;`;
+    canvas.appendChild(p);
+  }
+})();
+
+/* ── HELIX DISPLAY ── */
+(function initHelix() {
+  const wrap = document.getElementById('helixDisplay');
+  const pairs = [['A','T'],['T','A'],['G','C'],['C','G'],['A','T'],['G','C'],['T','A'],['C','G'],['A','T'],['G','C'],['T','A'],['C','G'],['A','T'],['G','C'],['T','A'],['C','G'],['A','T'],['G','C'],['T','A'],['C','G'],['A','T'],['G','C'],['T','A'],['C','G'],['A','T'],['G','C'],['T','A'],['C','G'],['A','T'],['G','C']];
+  const cols = {A:'#22d3ee',T:'#f472b6',G:'#4ade80',C:'#fb923c'};
+  pairs.forEach(([top, bot], i) => {
+    const group = document.createElement('div');
+    group.className = 'helix-base';
+    group.style.animationDelay = (i * 0.08) + 's';
+    group.style.animationDuration = '2s';
+    group.innerHTML = `<div class="base-top" style="background:${cols[top]};box-shadow:0 0 8px ${cols[top]}66"></div><div class="base-stem"></div><div class="base-bot" style="background:${cols[bot]};box-shadow:0 0 8px ${cols[bot]}66"></div>`;
+    wrap.appendChild(group);
+  });
+})();
+
+/* ── LIVE SEQUENCE PREVIEW ── */
+document.getElementById('seqInput').addEventListener('input', function() {
+  const val = clean(this.value).slice(0, 120);
+  const cols = {A:'b-A',T:'b-T',G:'b-G',C:'b-C'};
+  document.getElementById('seqPreview').innerHTML = val.split('').map(b => `<span class="${cols[b]||''}">${b}</span>`).join('') + (this.value.length > 120 ? '<span style="color:var(--muted)">...</span>' : '');
+});
+
+function loadSample(k) {
+  const ta = document.getElementById('seqInput');
+  ta.value = SAMPLES[k];
+  ta.dispatchEvent(new Event('input'));
+}
+
+/* ── SEQUENCE LOGIC ── */
+function clean(s) { return s.toUpperCase().replace(/[^ATGC]/g, ''); }
+
+function calcFreqs(seq) {
+  const f = {A:0,T:0,G:0,C:0};
+  for (const b of seq) if (f[b] !== undefined) f[b]++;
+  return f;
+}
+
+const CODONS = {TTT:'F',TTC:'F',TTA:'L',TTG:'L',CTT:'L',CTC:'L',CTA:'L',CTG:'L',ATT:'I',ATC:'I',ATA:'I',ATG:'M',GTT:'V',GTC:'V',GTA:'V',GTG:'V',TCT:'S',TCC:'S',TCA:'S',TCG:'S',CCT:'P',CCC:'P',CCA:'P',CCG:'P',ACT:'T',ACC:'T',ACA:'T',ACG:'T',GCT:'A',GCC:'A',GCA:'A',GCG:'A',TAT:'Y',TAC:'Y',TAA:'*',TAG:'*',CAT:'H',CAC:'H',CAA:'Q',CAG:'Q',AAT:'N',AAC:'N',AAA:'K',AAG:'K',GAT:'D',GAC:'D',GAA:'E',GAG:'E',TGT:'C',TGC:'C',TGA:'*',TGG:'W',CGT:'R',CGC:'R',CGA:'R',CGG:'R',AGT:'S',AGC:'S',AGA:'R',AGG:'R',GGT:'G',GGC:'G',GGA:'G',GGG:'G'};
+const AA_NAMES = {F:'Phe',L:'Leu',I:'Ile',M:'Met (start)',V:'Val',S:'Ser',P:'Pro',T:'Thr',A:'Ala',Y:'Tyr',H:'His',Q:'Gln',N:'Asn',K:'Lys',D:'Asp',E:'Glu',C:'Cys',W:'Trp',R:'Arg',G:'Gly','*':'Stop'};
+
+function translate(seq) {
+  let prot = '', rna = seq.replace(/T/g,'U');
+  for (let i = 0; i < seq.length - 2; i += 3) {
+    const c = seq.slice(i, i+3);
+    const aa = CODONS[c] || '?';
+    if (aa === '*') break;
+    prot += aa;
+  }
+  return { rna, protein: prot };
+}
+
+function getCodonUsage(seq) {
+  const usage = {};
+  for (let i = 0; i < seq.length - 2; i += 3) {
+    const c = seq.slice(i, i+3);
+    if (c.length === 3) usage[c] = (usage[c]||0) + 1;
+  }
+  return usage;
+}
+
+function findORFs(seq, min=15) {
+  const stops = ['TAA','TAG','TGA'];
+  const orfs = [];
+  for (let fr = 0; fr < 3; fr++) {
+    for (let i = fr; i < seq.length - 2; i += 3) {
+      if (seq.slice(i,i+3) === 'ATG') {
+        for (let j = i; j < seq.length - 2; j += 3) {
+          if (stops.includes(seq.slice(j,j+3))) {
+            if (j - i >= min) orfs.push({frame:fr+1, start:i, end:j+3, len:j-i});
+            break;
+          }
+        }
+      }
+    }
+  }
+  return orfs.sort((a,b) => b.len - a.len);
+}
+
+/* ── DONUT CANVAS ── */
+function drawDonut(gc, at) {
+  const canvas = document.getElementById('donutCanvas');
+  const ctx = canvas.getContext('2d');
+  const W = 130, H = 130, R = 48, r = 30;
+  ctx.clearRect(0, 0, W, H);
+  const total = gc + at;
+  const gcAngle = (gc / total) * 2 * Math.PI;
+  const startA = -Math.PI / 2;
+
+  // BG ring
+  ctx.beginPath();
+  ctx.arc(W/2, H/2, R, 0, 2*Math.PI);
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  ctx.lineWidth = R - r;
+  ctx.stroke();
+
+  // GC arc
+  ctx.beginPath();
+  ctx.arc(W/2, H/2, R, startA, startA + gcAngle);
+  ctx.strokeStyle = '#4ade80';
+  ctx.lineWidth = R - r;
+  ctx.lineCap = 'round';
+  ctx.stroke();
+
+  // AT arc
+  ctx.beginPath();
+  ctx.arc(W/2, H/2, R, startA + gcAngle + 0.05, startA + 2*Math.PI - 0.05);
+  ctx.strokeStyle = '#22d3ee';
+  ctx.lineWidth = R - r;
+  ctx.lineCap = 'round';
+  ctx.stroke();
+
+  // Center text
+  ctx.fillStyle = '#e2e8f0';
+  ctx.font = 'bold 16px JetBrains Mono, monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(gc.toFixed(1) + '%', W/2, H/2 - 7);
+  ctx.fillStyle = '#64748b';
+  ctx.font = '10px Space Grotesk, sans-serif';
+  ctx.fillText('GC', W/2, H/2 + 9);
+}
+
+/* ── RENDER RESULTS ── */
+function renderResults(seq) {
+  const freqs = calcFreqs(seq);
+  const gc = ((freqs.G + freqs.C) / seq.length * 100);
+  const at = 100 - gc;
+  const orfs = findORFs(seq);
+  const trans = translate(seq);
+  const codons = getCodonUsage(seq);
+  const codonCount = Math.floor(seq.length / 3);
+
+  // Stats
+  animateCount('r-len', seq.length);
+  animateCount('r-gc', gc, 1);
+  animateCount('r-codons', codonCount);
+  animateCount('r-orfs', orfs.length);
+
+  // Frequency bars
+  const barCols = {A:'A',T:'T',G:'G',C:'C'};
+  const fBar = document.getElementById('freqBars');
+  fBar.innerHTML = '';
+  const maxF = Math.max(...Object.values(freqs));
+  ['A','T','G','C'].forEach(b => {
+    const pct = (freqs[b] / seq.length * 100).toFixed(1);
+    const barW = (freqs[b] / maxF * 100).toFixed(1);
+    fBar.innerHTML += `<div class="freq-row">
+      <div class="freq-base ${b}">${b}</div>
+      <div class="freq-track"><div class="freq-fill ${b}" id="fbar-${b}" style="width:0%"></div></div>
+      <div class="freq-count">${pct}% <span style="color:var(--border2)">(${freqs[b]})</span></div>
+    </div>`;
+  });
+  setTimeout(() => {
+    ['A','T','G','C'].forEach(b => {
+      const el = document.getElementById('fbar-'+b);
+      if (el) el.style.width = (freqs[b] / maxF * 100).toFixed(1) + '%';
+    });
+  }, 100);
+
+  // Donut
+  drawDonut(gc, at);
+  document.getElementById('donutLegend').innerHTML = `
+    <div class="legend-item"><div class="legend-dot" style="background:#4ade80"></div><div class="legend-name">GC content</div><div class="legend-val">${gc.toFixed(1)}%</div></div>
+    <div class="legend-item"><div class="legend-dot" style="background:#22d3ee"></div><div class="legend-name">AT content</div><div class="legend-val">${at.toFixed(1)}%</div></div>
+    <div class="legend-item" style="margin-top:8px"><div class="legend-dot" style="background:var(--border2)"></div><div class="legend-name" style="font-size:11px;color:var(--muted)">Interpretation</div></div>
+    <div style="font-size:11px;color:var(--muted);line-height:1.7">${gc > 60 ? '🔥 High GC — thermostable, bacteria-like' : gc > 40 ? '✓ Normal GC — typical mammalian gene' : '❄️ AT-rich — promoter region or unstable'}</div>`;
+
+  // Translation
+  const tc = document.getElementById('transChain');
+  tc.innerHTML = `
+    <div class="trans-row"><div class="trans-tag">DNA 5'→3'</div><div class="trans-seq" style="color:var(--glow-a)">${seq.slice(0,90)}${seq.length>90?'…':''}</div></div>
+    <div class="trans-row"><div class="trans-tag">↓ transcribe</div><div style="padding:4px 0;color:var(--muted);font-size:11px;font-family:var(--mono)">T → U, DNA strand → mRNA</div></div>
+    <div class="trans-row"><div class="trans-tag">mRNA</div><div class="trans-seq" style="color:var(--glow-t)">${trans.rna.slice(0,90)}${trans.rna.length>90?'…':''}</div></div>
+    <div class="trans-row"><div class="trans-tag">↓ translate</div><div style="padding:4px 0;color:var(--muted);font-size:11px;font-family:var(--mono)">Each 3-base codon → 1 amino acid</div></div>
+    <div class="trans-row"><div class="trans-tag">Protein</div><div class="trans-seq" style="color:var(--glow-g)">${trans.protein || '<span style="color:var(--muted)">No start codon (ATG) in frame +1</span>'}</div></div>
+    ${trans.protein ? `<div style="font-size:11px;color:var(--muted);padding-top:4px">${trans.protein.length} amino acids encoded</div>` : ''}`;
+
+  // ORF map
+  const orfBar = document.getElementById('orfBar');
+  const orfItems = document.getElementById('orfItems');
+  const frameColors = ['#6366f1','#8b5cf6','#3b82f6'];
+  orfBar.innerHTML = '';
+  if (orfs.length === 0) {
+    orfItems.innerHTML = '<div class="no-orf">No ORFs detected (min 15 bp). Try a longer sequence with ATG codons.</div>';
+  } else {
+    orfs.slice(0, 8).forEach((o, i) => {
+      const left = (o.start / seq.length * 100).toFixed(1);
+      const width = (o.len / seq.length * 100).toFixed(1);
+      const col = frameColors[(o.frame-1) % 3];
+      orfBar.innerHTML += `<div class="orf-segment" style="left:${left}%;width:${Math.max(parseFloat(width), 2)}%;background:${col}" title="Frame ${o.frame}: ${o.start}-${o.end}">F${o.frame}</div>`;
+    });
+    orfItems.innerHTML = orfs.slice(0, 8).map((o,i) => {
+      const col = frameColors[(o.frame-1) % 3];
+      return `<div class="orf-item">
+        <span class="orf-frame-badge orf-f${o.frame}">Frame +${o.frame}</span>
+        <span class="orf-coords">pos ${o.start} – ${o.end}</span>
+        <span class="orf-len">${o.len} bp · ${Math.floor(o.len/3)} aa</span>
+      </div>`;
+    }).join('') + (orfs.length > 8 ? `<div style="font-size:11px;color:var(--muted);padding:6px 12px">+${orfs.length - 8} more ORFs detected</div>` : '');
+  }
+
+  // Codon usage
+  const cg = document.getElementById('codonGrid');
+  const sortedCodons = Object.entries(codons).sort((a,b) => b[1]-a[1]).slice(0, 32);
+  const maxC = sortedCodons[0]?.[1] || 1;
+  cg.innerHTML = sortedCodons.map(([cod, cnt]) => {
+    const aa = CODONS[cod] || '?';
+    const aaName = AA_NAMES[aa] || aa;
+    const intensity = Math.round((cnt / maxC) * 200);
+    const isStop = aa === '*';
+    const col = isStop ? 'rgba(239,68,68,0.15)' : `rgba(99,102,241,${0.05 + cnt/maxC * 0.25})`;
+    const textCol = isStop ? '#f87171' : `rgba(148,163,184,${0.5 + cnt/maxC * 0.5})`;
+    return `<div class="codon-cell" style="background:${col};color:${textCol};border-color:rgba(255,255,255,0.05)">
+      <span style="font-family:var(--mono)">${cod}</span><span style="color:var(--muted)"> ${aa}</span>
+      <div class="codon-tooltip">${cod} → ${aaName} (×${cnt})</div>
+    </div>`;
+  }).join('');
+}
+
+/* ── ANIMATE COUNT ── */
+function animateCount(id, target, decimals=0) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const start = 0, duration = 800;
+  const startTime = performance.now();
+  function step(now) {
+    const progress = Math.min((now - startTime) / duration, 1);
+    const ease = 1 - Math.pow(1 - progress, 3);
+    const val = start + (target - start) * ease;
+    el.textContent = decimals ? val.toFixed(decimals) : Math.round(val);
+    if (progress < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+/* ── CLAUDE AI ── */
+async function callClaude(seq, stats) {
+  const prompt = `You are an expert bioinformatician writing a research-quality interpretation for a student's DNA sequence analysis report.
+
+Sequence analysis data:
+- Length: ${stats.len} bp
+- GC content: ${stats.gc.toFixed(1)}%
+- AT content: ${stats.at.toFixed(1)}%  
+- ORFs found (≥15 bp): ${stats.orfs}
+- Amino acids translated (frame +1): ${stats.aaLen}
+- First 80 nucleotides: ${seq.slice(0,80)}
+- Top codon: ${stats.topCodon || 'N/A'}
+
+Write 5–6 sentences covering:
+1. What the GC content reveals (thermostability, organism type, genome region)
+2. What the coding potential (ORFs) suggests
+3. Any notable features from the sequence composition
+4. Biological relevance — what type of region this might be (coding, regulatory, intergenic)
+5. What a researcher would investigate next
+
+Write in clear, formal scientific English. No bullet points. No markdown. Address the student directly as if giving lab feedback.`;
+
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 1000,
+      messages: [{role: "user", content: prompt}]
+    })
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message);
+  return data.content?.[0]?.text || "Interpretation unavailable.";
+}
+
+/* ── MAIN ANALYSIS ── */
+async function runAnalysis() {
+  const raw = document.getElementById('seqInput').value.trim();
+  const seq = clean(raw);
+  const errBar = document.getElementById('errBar');
+  const statusBar = document.getElementById('statusBar');
+  const statusText = document.getElementById('statusText');
+  const btn = document.getElementById('analyzeBtn');
+  const spinner = document.getElementById('btnSpinner');
+  const btnText = document.getElementById('btnText');
+  const results = document.getElementById('results');
+
+  errBar.style.display = 'none';
+  if (seq.length < 15) {
+    errBar.textContent = 'Please enter at least 15 valid DNA bases (A, T, G, C only).';
+    errBar.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true;
+  spinner.style.display = 'block';
+  btnText.textContent = 'Analyzing...';
+  statusBar.style.display = 'flex';
+  statusText.textContent = 'Computing sequence statistics...';
+
+  await new Promise(r => setTimeout(r, 50));
+  renderResults(seq);
+
+  results.classList.add('visible');
+
+  statusText.textContent = 'Calling Claude AI for biological interpretation...';
+  document.getElementById('aiContent').innerHTML = `<div class="ai-loading"><div class="ai-dots"><span></span><span></span><span></span></div> Generating research-grade interpretation...</div>`;
+
+  const freqs = calcFreqs(seq);
+  const gc = (freqs.G + freqs.C) / seq.length * 100;
+  const orfs = findORFs(seq);
+  const trans = translate(seq);
+  const codons = getCodonUsage(seq);
+  const topCodon = Object.entries(codons).sort((a,b)=>b[1]-a[1])[0]?.[0];
+
+  try {
+    const interp = await callClaude(seq, {
+      len: seq.length, gc, at: 100-gc,
+      orfs: orfs.length, aaLen: trans.protein.length, topCodon
+    });
+    document.getElementById('aiContent').innerHTML = `<div class="ai-body">${interp}</div>`;
+  } catch(e) {
+    document.getElementById('aiContent').innerHTML = `<div class="ai-body" style="color:var(--muted)">AI interpretation unavailable. Check network connection. Your sequence analysis results above are still complete and accurate.</div>`;
+  }
+
+  statusBar.style.display = 'none';
+  btn.disabled = false;
+  spinner.style.display = 'none';
+  btnText.textContent = '⚡ Analyze Sequence';
+  results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+</script>
+</body>
+</html>
